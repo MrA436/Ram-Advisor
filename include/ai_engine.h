@@ -1,11 +1,24 @@
 #pragma once
-#include "Process.h"
+#include "process.h"
 #include <string>
 #include <sstream>
 #include <iomanip>
 #include <cctype>
+#include <algorithm>
 
 using namespace std;
+
+// ============================================================================
+// AI DECISION ENGINE
+// RAM Advisor: Intelligent Memory Governor
+// Responsibilities:
+// - Multi-parametric heuristic scoring formula
+// - Multi-tier risk assessment (LOW, MODERATE, HIGH)
+// - Graduated reclamation strategy generation:
+//     1. Non-destructive Working Set / Cache Trim
+//     2. Process Suspension (preserves unsaved work)
+//     3. Graceful Polite Termination
+// ============================================================================
 
 enum ActionType {
     ACTION_TRIM = 1,
@@ -14,17 +27,19 @@ enum ActionType {
 };
 
 struct plan {
-    ActionType action_type;
-    string action_name;
-    string rationale;
-    double estimated_freed_mb;
-    string risk_level;
-    string risk_details;
+    ActionType action_type = ACTION_TRIM;
+    string action_name = "";
+    string rationale = "";
+    double estimated_freed_mb = 0.0;
+    string risk_level = "LOW";
+    string risk_details = "";
 };
 
 struct ai_engine {
-    static double calculate_score(const Process& p) {
-        if (p.essential || !p.active) return 0.0;
+    // Calculate priority score for sorting and max-heap
+    // Formula: Score = (RAM_MB * 0.7) + (Background Bonus: 150)
+    static double calculate_score(const process& p) {
+        if (p.essential || !p.active || p.ram <= 0.0) return 0.0;
         double score = (p.ram * 0.7);
         if (p.background) {
             score += 150.0;
@@ -32,33 +47,40 @@ struct ai_engine {
         return score;
     }
 
-    plan make_plan(const Process& p) const {
+    plan make_plan(const process& p) const {
         plan pl;
         string low_name = p.name;
-        for (char &c : low_name) c = tolower(c);
+        for (char &c : low_name) {
+            c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        }
 
+        // Helper / daemon / service detection
         bool is_helper = (low_name.find("helper") != string::npos ||
                           low_name.find("service") != string::npos ||
                           low_name.find("worker") != string::npos ||
+                          low_name.find("daemon") != string::npos ||
                           low_name.find("updater") != string::npos);
 
         if (is_helper || p.ram < 300.0) {
+            // Low risk tier: suggest memory trimming / working set purge
             pl.action_type = ACTION_TRIM;
             pl.action_name = "Trim Working Set / Flush Cache";
             pl.rationale = "Background helper/daemon detected. Cache trim releases memory pages safely.";
-            pl.estimated_freed_mb = p.ram * 0.45; 
+            pl.estimated_freed_mb = p.ram * 0.45; // ~45% estimated reclamation
             pl.risk_level = "LOW";
             pl.risk_details = "Safe operation. Process remains alive and no user data is affected.";
         }
         else if (p.ram < 900.0) {
+            // Moderate risk tier: suggest suspend to preserve unsaved state
             pl.action_type = ACTION_SUSPEND;
             pl.action_name = "Suspend Process (Preserve Memory Pages)";
             pl.rationale = "Application has active session state. Suspending stops CPU paging while preserving unsaved work.";
-            pl.estimated_freed_mb = p.ram * 0.70; 
+            pl.estimated_freed_mb = p.ram * 0.70; // ~70% compressed/paged out
             pl.risk_level = "MODERATE";
             pl.risk_details = "Process is paused without termination. Can be resumed anytime without data loss.";
         }
         else {
+            // High risk tier: heavy memory consumer, recommend polite close
             pl.action_type = ACTION_TERMINATE;
             pl.action_name = "Polite Process Termination";
             pl.rationale = "Heavy memory footprint (>900 MB). Terminating frees substantial system RAM.";

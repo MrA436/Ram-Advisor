@@ -1,39 +1,57 @@
 #pragma once
-#include "Process.h"
+#include "process.h"
 #include "dsa.h"
 #include "ai_engine.h"
 #include <vector>
 #include <iostream>
 #include <iomanip>
+#include <algorithm>
+#include <string>
 
 using namespace std;
+
+// ============================================================================
+// ANALYZER & RANKING ENGINE
+// RAM Advisor: Intelligent Memory Governor
+// Responsibilities:
+// - Maintain RAM reading history using CustomCircularQueue
+// - Filter skipped processes using CustomHashTable (O(1) lookup)
+// - Sort candidate processes using CustomMergeSort (O(N log N))
+// - Select optimal recommendation using CustomMaxHeap (O(log N))
+// ============================================================================
 
 struct analyzer {
     CustomCircularQueue ram_history;
     CustomHashTable skipped_table;
     CustomMaxHeap priority_heap;
 
-    vector<Process> rank_list(vector<Process>& list) {
-        vector<Process> eligible;
+    // Filters eligible candidates, sorts with MergeSort, and builds MaxHeap
+    vector<process> rank_list(vector<process>& list) {
+        vector<process> eligible;
 
-        for (Process& p : list) {
+        // 1. Calculate scores and filter candidates
+        for (process& p : list) {
             p.score = ai_engine::calculate_score(p);
             if (p.active && !p.essential && p.score > 0.0) {
+                // Check if already skipped or handled using CustomHashTable
                 if (!skipped_table.contains(p.pid)) {
                     eligible.push_back(p);
                 }
             }
         }
 
+        // 2. Sort eligible candidates using custom MergeSort
         if (!eligible.empty()) {
             custom_merge_sort(eligible.data(), 0, static_cast<int>(eligible.size()) - 1);
         }
 
+        // 3. Build CustomMaxHeap for priority retrieval
         priority_heap.clear();
-        for (const Process& p : eligible) {
+        for (const process& p : eligible) {
             priority_heap.insert(p);
         }
 
+        // 4. Display ranked candidates table
         cout << "\n------------------------------------------------------------\n";
         cout << "[Analyzer] Process Priority Ranking (Custom MergeSort & MaxHeap)\n";
         cout << "------------------------------------------------------------\n";
