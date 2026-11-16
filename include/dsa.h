@@ -5,18 +5,6 @@
 #include <algorithm>
 #include <utility>
 
-// ============================================================================
-// DATA STRUCTURES & ALGORITHMS IMPLEMENTATION
-// RAM Advisor: Intelligent Memory Governor
-// 1. CustomMaxHeap       - Priority Queue for selecting highest impact process
-// 2. CustomCircularQueue - Ring buffer for memory readings history
-// 3. CustomHashTable     - Separate chaining hash table for fast PID blacklist
-// 4. CustomMergeSort     - Stable O(N log N) sorting for process list
-// ============================================================================
-
-// ----------------------------------------------------------------------------
-// 1. CUSTOM MAX HEAP (Dynamic Binary Heap for Process Priority Queue)
-// ----------------------------------------------------------------------------
 class CustomMaxHeap {
 private:
     process* heap;
@@ -31,7 +19,7 @@ private:
         if (a.score != b.score) {
             return a.score > b.score;
         }
-        return a.ram > b.ram; // Tie-breaker: higher RAM consumption
+        return a.ram > b.ram;
     }
 
     void swap_nodes(int i, int j) {
@@ -86,7 +74,6 @@ public:
         delete[] heap;
     }
 
-    // Deep Copy Constructor
     CustomMaxHeap(const CustomMaxHeap& other) {
         capacity = other.capacity;
         current_size = other.current_size;
@@ -96,7 +83,6 @@ public:
         }
     }
 
-    // Deep Copy Assignment Operator
     CustomMaxHeap& operator=(const CustomMaxHeap& other) {
         if (this != &other) {
             delete[] heap;
@@ -110,7 +96,6 @@ public:
         return *this;
     }
 
-    // Move Constructor
     CustomMaxHeap(CustomMaxHeap&& other) noexcept 
         : heap(other.heap), capacity(other.capacity), current_size(other.current_size) {
         other.heap = nullptr;
@@ -118,7 +103,6 @@ public:
         other.current_size = 0;
     }
 
-    // Move Assignment Operator
     CustomMaxHeap& operator=(CustomMaxHeap&& other) noexcept {
         if (this != &other) {
             delete[] heap;
@@ -171,9 +155,6 @@ public:
     }
 };
 
-// ----------------------------------------------------------------------------
-// 2. CUSTOM CIRCULAR QUEUE (Ring buffer for RAM usage history)
-// ----------------------------------------------------------------------------
 class CustomCircularQueue {
 private:
     static const int CAPACITY = 10;
@@ -192,7 +173,6 @@ public:
 
     void enqueue(double val) {
         if (count == CAPACITY) {
-            // Overwrite oldest reading when buffer is full
             front_idx = (front_idx + 1) % CAPACITY;
             rear_idx = (rear_idx + 1) % CAPACITY;
             buffer[rear_idx] = val;
@@ -224,9 +204,6 @@ public:
     }
 };
 
-// ----------------------------------------------------------------------------
-// 3. CUSTOM HASH TABLE (Separate Chaining for PID Blacklist / Skipped PIDs)
-// ----------------------------------------------------------------------------
 class CustomHashTable {
 private:
     struct HashNode {
@@ -235,7 +212,7 @@ private:
         explicit HashNode(int p) : pid(p), next(nullptr) {}
     };
 
-    static const int TABLE_SIZE = 37; // Prime size to reduce clustering
+    static const int TABLE_SIZE = 37;
     HashNode* buckets[TABLE_SIZE];
 
     int hash_function(int pid) const {
@@ -254,7 +231,6 @@ public:
         clear();
     }
 
-    // Deep Copy Constructor (Prevents double-free on copy)
     CustomHashTable(const CustomHashTable& other) {
         for (int i = 0; i < TABLE_SIZE; i++) buckets[i] = nullptr;
         for (int i = 0; i < TABLE_SIZE; i++) {
@@ -268,7 +244,6 @@ public:
         }
     }
 
-    // Deep Copy Assignment Operator
     CustomHashTable& operator=(const CustomHashTable& other) {
         if (this != &other) {
             clear();
@@ -285,7 +260,6 @@ public:
         return *this;
     }
 
-    // Move Constructor
     CustomHashTable(CustomHashTable&& other) noexcept {
         for (int i = 0; i < TABLE_SIZE; i++) {
             buckets[i] = other.buckets[i];
@@ -293,7 +267,6 @@ public:
         }
     }
 
-    // Move Assignment Operator
     CustomHashTable& operator=(CustomHashTable&& other) noexcept {
         if (this != &other) {
             clear();
@@ -306,7 +279,7 @@ public:
     }
 
     void insert(int pid) {
-        if (contains(pid)) return; // Already present
+        if (contains(pid)) return;
         int idx = hash_function(pid);
         HashNode* new_node = new HashNode(pid);
         new_node->next = buckets[idx];
@@ -336,9 +309,6 @@ public:
     }
 };
 
-// ----------------------------------------------------------------------------
-// 4. CUSTOM MERGE SORT (Stable divide-and-conquer sorting for processes)
-// ----------------------------------------------------------------------------
 inline void merge_subarrays(process arr[], int left, int mid, int right) {
     int n1 = mid - left + 1;
     int n2 = right - mid;
@@ -351,7 +321,6 @@ inline void merge_subarrays(process arr[], int left, int mid, int right) {
 
     int i = 0, j = 0, k = left;
 
-    // Stable sort descending by score (tie-breaking by higher RAM)
     while (i < n1 && j < n2) {
         bool take_left = false;
         if (L[i].score > R[j].score) {
